@@ -49,20 +49,26 @@ Rules:
 - Merge duplicate findings into one canonical description
 - The quorum_score is the fraction of findings that reached 2/3 or 3/3 agreement
 
-Return ONLY this JSON (no markdown fences). Use exact string values shown:
+Return ONLY valid JSON (no markdown fences, no extra text). Example structure:
 {
   "findings": [
     {
-      "issue": "<merged, canonical description>",
-      "agents": ["pragmatist"],
-      "confidence": "<one of: 3/3, 2/3, 1/3>",
-      "call": "<one of: FIX_IT, YOUR_CALL>",
-      "fix": "<one-line concrete suggestion>"
+      "issue": "Discount overwrite silently ignores premium status",
+      "agents": ["pragmatist", "purist"],
+      "confidence": "2/3",
+      "call": "FIX_IT",
+      "fix": "Use elif or combine conditions to preserve premium discount"
     }
   ],
-  "verdict": "<one sentence: what this code's main risk is>",
-  "quorum_score": 0.75
-}"""
+  "verdict": "Silent logic bug affects all premium users with large carts.",
+  "quorum_score": 0.67
+}
+
+Rules for field values:
+- confidence: must be exactly "3/3", "2/3", or "1/3"
+- call: must be exactly "FIX_IT" or "YOUR_CALL"
+- quorum_score: float 0.0 to 1.0, fraction of findings at 2/3 or higher
+- agents: list containing only the names that flagged this issue"""
 
 
 def _parse_json(text: str, fallback):

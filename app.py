@@ -93,6 +93,10 @@ if run and code.strip():
 
         # ── Results ───────────────────────────────────────────────────────────
         st.divider()
+        if not synthesis or not synthesis.get("findings"):
+            st.warning("No findings returned. The code may be clean, or try again.")
+            st.stop()
+
         findings = synthesis.get("findings", [])
         verdict  = synthesis.get("verdict", "")
 
