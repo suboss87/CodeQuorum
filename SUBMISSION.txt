@@ -1,14 +1,78 @@
-Challenge: The AI Pair Engineer (#2)
-Project: CodeQuorum
-GitHub: https://github.com/suboss87/CodeQuorum
+THE AI PAIR ENGINEER | CHALLENGE #2
+CodeQuorum
+github.com/suboss87/CodeQuorum
 
-SUMMARY (100 words):
+────────────────────────────────────────
+WHAT IT DOES
+────────────────────────────────────────
 
-CodeQuorum is an AI that codes alongside developers by detecting design flaws, proposing
-tests, and refactoring — automatically on every pull request. Add one YAML file to your
-repo and every PR is reviewed by three specialist agents in parallel: the Pragmatist
-asks "will this break?", the Purist asks "is this correct?", the Operator asks "will
-I know when it fails?". Where two or more agree on a root cause, CodeQuorum delivers
-a confirmed design flaw, the refactored code that fixes it, and a failing test that
-would have caught it. Confidence comes from inter-agent consensus, not self-assessment.
-Built with LangGraph and Claude.
+Add one YAML file to your repo. Every pull request is automatically reviewed by three
+specialist AI agents running in parallel. Results are posted as a PR comment. No UI,
+no manual step.
+
+Three agents. Three failure models.
+
+  The Pragmatist   "Will this break in production?"
+  The Purist       "Does this code do what it claims?"
+  The Operator     "When it fails, will I know?"
+
+A synthesis agent cross-references all three and applies one rule:
+
+  2+ agents flag the same root cause →  FIX IT
+                                         Design flaw confirmed.
+                                         Refactored code included.
+                                         Failing test included.
+
+  1 agent flags something            →  YOUR CALL
+                                         A genuine design tradeoff,
+                                         surfaced for the developer to decide.
+
+This directly addresses the challenge: detecting design flaws, proposing tests, and
+refactoring — automatically, on every pull request.
+
+────────────────────────────────────────
+WHY THIS APPROACH
+────────────────────────────────────────
+
+Most AI reviewers give one opinion and call it a recommendation. Confidence from a
+single LLM is just assertion. CodeQuorum derives confidence from inter-agent consensus:
+when agents with fundamentally different priorities converge on the same root cause,
+that convergence is meaningful. When they disagree, the disagreement is the signal —
+it tells the developer exactly where the tradeoff lives.
+
+This is not a one-off pattern for code review. It is the core architecture of enterprise
+WorkOS: specialist agents with distinct value systems, parallel execution, structured
+handoff, and disagreement as a first-class output. The same pattern applies at scale —
+contract analysis, compliance checks, customer escalation triage — any domain where a
+single AI reviewer is a single point of bias. CodeQuorum is a working implementation
+of that pattern, deployed on a real problem.
+
+────────────────────────────────────────
+WHAT WAS BUILT
+────────────────────────────────────────
+
+Agentic architecture   LangGraph fan-out / fan-in. Three specialist agents run in
+                       parallel via ThreadPoolExecutor. ~4s vs 15s sequential.
+
+Synthesis layer        Consensus threshold: 2 of 3 agents required to trigger a
+                       FIX IT verdict. Each verdict includes refactored code and a
+                       failing test. 1-agent findings surface as YOUR CALL.
+
+GitHub Action          Triggers automatically on every PR. Reviews only changed files
+                       via git diff. Posts a single updating comment — one comment
+                       per PR, updated on each new commit, never spamming.
+
+Production hardening   10-minute job timeout. Pip dependency caching. Graceful error
+                       handling with a developer-facing failure message if the review
+                       cannot complete.
+
+Test suite             20 tests covering the full verdict path: JSON parsing
+                       robustness, GitHub URL edge cases, consensus cases, split
+                       decisions, PR comment formatting, and empty inputs.
+                       All 20 pass.
+
+────────────────────────────────────────
+Subash Natarajan
+suboss87@gmail.com
+github.com/suboss87/CodeQuorum
+────────────────────────────────────────
