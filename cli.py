@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-CodeQuorum CLI — runs a review on a local directory and outputs results.
-Used by the GitHub Actions workflow to post PR comments automatically.
+CodeQuorum CLI — detects design flaws, proposes tests, and refactors.
+Used by the GitHub Actions workflow to post results as a PR comment.
 
 Usage:
     python cli.py --path . --format markdown
-    python cli.py --path ./src --model gpt-4o --format json
+    python cli.py --path ./src --format json
 """
 
 import argparse
@@ -19,12 +19,12 @@ CODE_EXTENSIONS = {
     ".cpp", ".c", ".cs", ".php", ".swift", ".kt", ".scala", ".sh",
 }
 SKIP_DIRS = {"node_modules", "dist", "build", ".git", "venv", "__pycache__", ".next", "vendor"}
-MAX_FILES   = 10
-MAX_BYTES   = 30_000
+MAX_FILES = 10
+MAX_BYTES = 30_000
 
 
 def get_pr_changed_files() -> list[str]:
-    """Return list of files changed in the current PR using git diff against base branch."""
+    """Return files changed in the current PR using git diff against the base branch."""
     import subprocess
     base = os.getenv("GITHUB_BASE_REF", "main")
     try:
@@ -42,7 +42,6 @@ def read_local_files(path: str, pr_files: list[str] | None = None) -> tuple[str,
     sections = []
 
     if pr_files:
-        # PR mode: review only what changed
         candidates = [
             root / f for f in pr_files
             if Path(f).suffix in CODE_EXTENSIONS
@@ -76,7 +75,7 @@ def read_local_files(path: str, pr_files: list[str] | None = None) -> tuple[str,
     return "\n\n".join(sections), label
 
 
-def findings_to_markdown(source_label: str, model_label: str, synthesis: dict) -> str:
+def findings_to_markdown(source_label: str, synthesis: dict) -> str:
     findings   = synthesis.get("findings", [])
     verdict    = synthesis.get("verdict", "")
     fix_items  = [f for f in findings if f.get("call") == "FIX_IT"]
@@ -87,8 +86,8 @@ def findings_to_markdown(source_label: str, model_label: str, synthesis: dict) -
     lines = [
         "## ⚖️ CodeQuorum Review",
         "",
-        f"**Reviewed:** `{source_label}` · **Model:** {model_label}",
-        f"**Findings:** {len(findings)} total · 🔴 {len(fix_items)} Fix It · 🟡 {len(call_items)} Your Call",
+        f"**Reviewed:** `{source_label}`",
+        f"**Design flaws:** {len(findings)} total · 🔴 {len(fix_items)} Fix It · 🟡 {len(call_items)} Your Call",
         "",
     ]
 
@@ -96,7 +95,7 @@ def findings_to_markdown(source_label: str, model_label: str, synthesis: dict) -
         lines += [f"> {verdict}", ""]
 
     if fix_items:
-        lines += ["### 🔴 Fix It — Quorum Reached (2+ agents agreed)", ""]
+        lines += ["### 🔴 Fix It — Refactored Code + Test (2+ agents agreed)", ""]
         for f in fix_items:
             agents = f.get("agents", [])
             icons  = " ".join(AGENT_ICONS.get(a, "") for a in agents)
@@ -107,11 +106,11 @@ def findings_to_markdown(source_label: str, model_label: str, synthesis: dict) -
             if f.get("refactored_code"):
                 lines += ["**Refactored:**", f"```python\n{f['refactored_code']}\n```", ""]
             if f.get("test"):
-                lines += ["**Test:**", f"```python\n{f['test']}\n```", ""]
+                lines += ["**Proposed test:**", f"```python\n{f['test']}\n```", ""]
             lines.append("---")
 
     if call_items:
-        lines += ["", "### 🟡 Your Call — Genuine Tradeoff (1 agent flagged)", ""]
+        lines += ["", "### 🟡 Your Call — Design Tradeoffs (1 agent flagged)", ""]
         for f in call_items:
             agents = f.get("agents", [])
             icons  = " ".join(AGENT_ICONS.get(a, "") for a in agents)
@@ -130,10 +129,8 @@ def findings_to_markdown(source_label: str, model_label: str, synthesis: dict) -
 
 
 def main():
-    parser = argparse.ArgumentParser(description="CodeQuorum CLI — AI pair engineer review")
+    parser = argparse.ArgumentParser(description="CodeQuorum — detects design flaws, proposes tests, refactors")
     parser.add_argument("--path",   default=".", help="Path to local repo or directory")
-    parser.add_argument("--model",  default="claude-sonnet-4-6",
-                        choices=["claude-sonnet-4-6", "gpt-4o", "gemini-2.0-flash"])
     parser.add_argument("--format", default="markdown", choices=["markdown", "json"],
                         help="Output format")
     args = parser.parse_args()
@@ -141,23 +138,15 @@ def main():
     from dotenv import load_dotenv
     load_dotenv()
 
-    # Lazy import so CLI startup is fast
     from graph import graph
 
-    MODEL_LABELS = {
-        "claude-sonnet-4-6": "Claude Sonnet 4.6",
-        "gpt-4o":            "GPT-4o",
-        "gemini-2.0-flash":  "Gemini 2.0 Flash",
-    }
-
-    # In a GitHub Actions PR context, review only changed files
     pr_files = get_pr_changed_files() if os.getenv("GITHUB_BASE_REF") else None
     if pr_files:
         print(f"PR mode: reviewing {len(pr_files)} changed files", file=sys.stderr)
     code, source_label = read_local_files(args.path, pr_files)
 
     initial = {
-        "code": code, "model": args.model,
+        "code": code,
         "pragmatist": [], "purist": [], "operator": [], "synthesis": {},
     }
 
@@ -170,7 +159,7 @@ def main():
     if args.format == "json":
         print(json.dumps(synthesis, indent=2))
     else:
-        print(findings_to_markdown(source_label, MODEL_LABELS[args.model], synthesis))
+        print(findings_to_markdown(source_label, synthesis))
 
 
 if __name__ == "__main__":

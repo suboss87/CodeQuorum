@@ -4,11 +4,11 @@ GitHub: https://github.com/suboss87/CodeQuorum
 
 SUMMARY (100 words):
 
-Real pair engineers work alongside you. CodeQuorum does the same: add one YAML
-file to your repo and every pull request is automatically reviewed by three
-specialist AI agents in parallel. The Pragmatist asks "will this break?", the
-Purist asks "is this correct?", the Operator asks "will I know when it fails?".
-Where two or more agree, you get FIX IT with refactored code and a failing test.
-Where one agent flags something, you get YOUR CALL — a genuine tradeoff, not a
-false alarm. Confidence from consensus, not self-assessment. Built with LangGraph,
-GitHub OAuth, and multi-model support.
+CodeQuorum is an AI that codes alongside developers by detecting design flaws, proposing
+tests, and refactoring — automatically on every pull request. Add one YAML file to your
+repo and every PR is reviewed by three specialist agents in parallel: the Pragmatist
+asks "will this break?", the Purist asks "is this correct?", the Operator asks "will
+I know when it fails?". Where two or more agree on a root cause, CodeQuorum delivers
+a confirmed design flaw, the refactored code that fixes it, and a failing test that
+would have caught it. Confidence comes from inter-agent consensus, not self-assessment.
+Built with LangGraph and Claude.
