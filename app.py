@@ -87,6 +87,7 @@ on:
 jobs:
   review:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       pull-requests: write
     steps:
@@ -96,22 +97,38 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: "pip"
       - run: pip install anthropic langgraph python-dotenv requests
       - run: |
           curl -sO https://raw.githubusercontent.com/suboss87/CodeQuorum/main/cli.py
           curl -sO https://raw.githubusercontent.com/suboss87/CodeQuorum/main/agents.py
           curl -sO https://raw.githubusercontent.com/suboss87/CodeQuorum/main/graph.py
-      - run: python cli.py --path . --format markdown > review.md
+      - id: review
+        continue-on-error: true
+        run: python cli.py --path . --format markdown > review.md
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      - if: steps.review.outcome == 'failure'
+        run: echo "## ⚖️ CodeQuorum Review\\n\\n> Review failed. Check ANTHROPIC_API_KEY is set in repo secrets." > review.md
       - uses: actions/github-script@v7
         with:
           script: |
             const body = require('fs').readFileSync('review.md','utf8');
-            await github.rest.issues.createComment({
+            const marker = '<!-- codequorum-review -->';
+            const fullBody = marker + '\\n' + body;
+            const { data: comments } = await github.rest.issues.listComments({
               issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo, body });""",
+              owner: context.repo.owner, repo: context.repo.repo });
+            const existing = comments.find(c => c.body.startsWith(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                comment_id: existing.id,
+                owner: context.repo.owner, repo: context.repo.repo, body: fullBody });
+            } else {
+              await github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner, repo: context.repo.repo, body: fullBody });
+            }""",
             language="yaml",
         )
 

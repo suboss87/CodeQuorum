@@ -47,7 +47,10 @@ def read_local_files(path: str, pr_files: list[str] | None = None) -> tuple[str,
             if Path(f).suffix in CODE_EXTENSIONS
             and not any(part in SKIP_DIRS for part in Path(f).parts)
         ]
-        label_suffix = f"{len(candidates)} changed files"
+        if len(candidates) > MAX_FILES:
+            skipped = len(candidates) - MAX_FILES
+            print(f"Warning: {len(candidates)} changed files found, reviewing first {MAX_FILES} (skipping {skipped})", file=sys.stderr)
+        label_suffix = f"{min(len(candidates), MAX_FILES)} of {len(candidates)} changed files"
     else:
         candidates = sorted(
             [f for f in root.rglob("*")
