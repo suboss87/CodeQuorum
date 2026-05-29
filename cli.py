@@ -23,23 +23,47 @@ MAX_FILES   = 10
 MAX_BYTES   = 30_000
 
 
-def read_local_files(path: str) -> tuple[str, str]:
+def get_pr_changed_files() -> list[str]:
+    """Return list of files changed in the current PR using git diff against base branch."""
+    import subprocess
+    base = os.getenv("GITHUB_BASE_REF", "main")
+    try:
+        result = subprocess.run(
+            ["git", "diff", "--name-only", f"origin/{base}...HEAD"],
+            capture_output=True, text=True, check=True,
+        )
+        return [f.strip() for f in result.stdout.splitlines() if f.strip()]
+    except Exception:
+        return []
+
+
+def read_local_files(path: str, pr_files: list[str] | None = None) -> tuple[str, str]:
     root = Path(path).resolve()
     sections = []
 
-    files = sorted(
-        [f for f in root.rglob("*")
-         if f.is_file()
-         and f.suffix in CODE_EXTENSIONS
-         and not any(part in SKIP_DIRS for part in f.parts)],
-        key=lambda f: f.stat().st_size,
-        reverse=True,
-    )[:MAX_FILES]
+    if pr_files:
+        # PR mode: review only what changed
+        candidates = [
+            root / f for f in pr_files
+            if Path(f).suffix in CODE_EXTENSIONS
+            and not any(part in SKIP_DIRS for part in Path(f).parts)
+        ]
+        label_suffix = f"{len(candidates)} changed files"
+    else:
+        candidates = sorted(
+            [f for f in root.rglob("*")
+             if f.is_file()
+             and f.suffix in CODE_EXTENSIONS
+             and not any(part in SKIP_DIRS for part in f.parts)],
+            key=lambda f: f.stat().st_size,
+            reverse=True,
+        )
+        label_suffix = f"{min(len(candidates), MAX_FILES)} files"
 
-    for f in files:
+    for f in candidates[:MAX_FILES]:
         try:
-            content = f.read_text(errors="ignore")[:MAX_BYTES]
-            rel = f.relative_to(root)
+            content = Path(f).read_text(errors="ignore")[:MAX_BYTES]
+            rel = Path(f).relative_to(root)
             sections.append(f"# --- {rel} ---\n{content}")
         except Exception:
             pass
@@ -48,7 +72,7 @@ def read_local_files(path: str) -> tuple[str, str]:
         print("No code files found.", file=sys.stderr)
         sys.exit(1)
 
-    label = f"{root.name} ({len(sections)} files, local)"
+    label = f"{root.name} ({label_suffix})"
     return "\n\n".join(sections), label
 
 
@@ -126,7 +150,11 @@ def main():
         "gemini-2.0-flash":  "Gemini 2.0 Flash",
     }
 
-    code, source_label = read_local_files(args.path)
+    # In a GitHub Actions PR context, review only changed files
+    pr_files = get_pr_changed_files() if os.getenv("GITHUB_BASE_REF") else None
+    if pr_files:
+        print(f"PR mode: reviewing {len(pr_files)} changed files", file=sys.stderr)
+    code, source_label = read_local_files(args.path, pr_files)
 
     initial = {
         "code": code, "model": args.model,
