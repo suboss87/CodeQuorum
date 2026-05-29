@@ -1,0 +1,5 @@
+anthropic>=0.40.0
+langgraph>=0.2.0
+streamlit>=1.28.0
+python-dotenv>=1.0.0
+pytest>=8.0.0
