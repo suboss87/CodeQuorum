@@ -81,6 +81,50 @@ with st.sidebar:
     st.markdown("---")
     st.caption("2+ agents agree → **FIX IT**  \n1 agent flags → **YOUR CALL**")
 
+    st.markdown("---")
+    st.subheader("Add to your repo")
+    st.caption("Auto-review every PR — no manual step needed.")
+    with st.expander("Get the GitHub Action"):
+        st.markdown(
+            "Copy this file into your repo at `.github/workflows/codequorum.yml`  \n"
+            "Then add `ANTHROPIC_API_KEY` as a repo secret.  \n"
+            "Every PR will be reviewed automatically."
+        )
+        st.code(
+            """name: CodeQuorum Review
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install anthropic langgraph python-dotenv requests
+      - run: |
+          curl -sO https://raw.githubusercontent.com/suboss87/CodeQuorum/main/cli.py
+          curl -sO https://raw.githubusercontent.com/suboss87/CodeQuorum/main/agents.py
+          curl -sO https://raw.githubusercontent.com/suboss87/CodeQuorum/main/graph.py
+      - run: python cli.py --path . --format markdown > review.md
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const body = require('fs').readFileSync('review.md','utf8');
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo, body });""",
+            language="yaml",
+        )
+
 # ── Main: left = input, right = results ──────────────────────────────────────
 left, right = st.columns([1, 1], gap="large")
 
@@ -328,7 +372,21 @@ elif "last_results" in st.session_state:
 
 else:
     with right:
-        st.markdown("")
-        st.markdown("")
-        st.markdown("### Results will appear here")
+        st.subheader("Results will appear here")
         st.caption("Connect GitHub, select a repo, then click Convene Quorum.")
+        st.divider()
+        st.markdown("**What you will get per finding:**")
+        with st.container(border=True):
+            col_a, col_b = st.columns([4, 1])
+            with col_a:
+                st.markdown("🔴 **Example: Null check missing before cart access**")
+                st.caption("↳ Add guard clause before accessing cart.items")
+                st.code("def process_cart(cart):\n    if not cart:\n        return 0\n    ...", language="python")
+                st.code("assert process_cart(None) == 0", language="python")
+            with col_b:
+                st.caption("2/3")
+                st.caption("🚢 🎯")
+        st.caption("Each FIX IT finding includes the issue, refactored code, and a failing test.")
+        st.divider()
+        st.markdown("**Or add it to your repo to auto-review every PR:**")
+        st.caption("See 'Add to your repo' in the sidebar.")

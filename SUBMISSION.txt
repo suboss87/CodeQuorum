@@ -4,11 +4,11 @@ GitHub: https://github.com/suboss87/CodeQuorum
 
 SUMMARY (100 words):
 
-Real code review is a panel, not one reviewer. CodeQuorum runs three specialist
-AI agents in parallel: a Pragmatist ("will this break?"), a Purist ("is this
-correct?"), and an Operator ("will I know when it fails?"). A synthesis agent
-finds consensus: 2+ agents agree means FIX IT with actual refactored code and a
-failing test. Only 1 agent flags it means YOUR CALL, a genuine tradeoff for the
-developer to decide. It detects design flaws, rewrites broken code, and proposes
-tests - the full AI pair engineer brief. Built in 60 minutes using AI-assisted
-development on LangGraph with GitHub OAuth and multi-model support.
+Real pair engineers work alongside you. CodeQuorum does the same: add one YAML
+file to your repo and every pull request is automatically reviewed by three
+specialist AI agents in parallel. The Pragmatist asks "will this break?", the
+Purist asks "is this correct?", the Operator asks "will I know when it fails?".
+Where two or more agree, you get FIX IT with refactored code and a failing test.
+Where one agent flags something, you get YOUR CALL — a genuine tradeoff, not a
+false alarm. Confidence from consensus, not self-assessment. Built with LangGraph,
+GitHub OAuth, and multi-model support.

@@ -93,7 +93,56 @@ The same pattern applies at scale beyond code review: contract analysis, complia
 
 ---
 
-## Quick Start
+## Add to Your Repo — Auto-review Every PR
+
+CodeQuorum can run automatically on every pull request and post results as a PR comment. No manual step needed.
+
+**1. Add the workflow file to your repo**
+
+Create `.github/workflows/codequorum.yml`:
+
+```yaml
+name: CodeQuorum Review
+on:
+  pull_request:
+    types: [opened, synchronize]
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install anthropic langgraph python-dotenv requests
+      - run: |
+          curl -sO https://raw.githubusercontent.com/suboss87/CodeQuorum/main/cli.py
+          curl -sO https://raw.githubusercontent.com/suboss87/CodeQuorum/main/agents.py
+          curl -sO https://raw.githubusercontent.com/suboss87/CodeQuorum/main/graph.py
+      - run: python cli.py --path . --format markdown > review.md
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const body = require('fs').readFileSync('review.md','utf8');
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo, body });
+```
+
+**2. Add your API key as a repo secret**
+
+`Settings → Secrets → New repository secret → ANTHROPIC_API_KEY`
+
+That is it. Every PR now gets a CodeQuorum review posted automatically.
+
+---
+
+## Quick Start (Streamlit UI)
 
 ```bash
 git clone https://github.com/suboss87/CodeQuorum
