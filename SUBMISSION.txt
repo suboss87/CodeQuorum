@@ -5,11 +5,10 @@ GitHub: https://github.com/suboss87/CodeQuorum
 SUMMARY (100 words):
 
 Real code review is a panel, not one reviewer. CodeQuorum runs three specialist
-AI agents in parallel — a Pragmatist ("will this break?"), a Purist ("is this
-correct?"), and an Operator ("will I know when it fails?") — each with a distinct
-philosophy. A synthesis agent then finds consensus: 2+ agents agree means FIX IT
-with a concrete refactor and a failing test. Only 1 agent flags it means YOUR CALL
-— a genuine tradeoff. Confidence comes from inter-agent agreement, not self-
-assessment. Built in 60 minutes using AI-assisted development on LangGraph,
-multi-model support, and GitHub OAuth. This is the enterprise agentic pattern at
-its simplest.
+AI agents in parallel: a Pragmatist ("will this break?"), a Purist ("is this
+correct?"), and an Operator ("will I know when it fails?"). A synthesis agent
+finds consensus: 2+ agents agree means FIX IT with actual refactored code and a
+failing test. Only 1 agent flags it means YOUR CALL, a genuine tradeoff for the
+developer to decide. It detects design flaws, rewrites broken code, and proposes
+tests - the full AI pair engineer brief. Built in 60 minutes using AI-assisted
+development on LangGraph with GitHub OAuth and multi-model support.
