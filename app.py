@@ -42,7 +42,7 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("**The three reviewers**")
     for meta in AGENT_META.values():
-        st.markdown(f"{meta['icon']} **{meta['label']}** — *{meta['question']}*")
+        st.markdown(f"{meta['icon']} **{meta['label']}**: *{meta['question']}*")
     st.markdown("---")
     st.caption("2+ agents agree → **FIX IT** (quorum reached)")
     st.caption("1 agent flags → **YOUR CALL** (genuine tradeoff)")
@@ -66,32 +66,35 @@ if run and code.strip():
 
         placeholders = {k: st.empty() for k in AGENT_META}
         for k, meta in AGENT_META.items():
-            placeholders[k].markdown(f"{meta['icon']} **{meta['label']}** — reviewing…")
+            placeholders[k].markdown(f"{meta['icon']} **{meta['label']}** - reviewing...")
 
         agent_findings: dict = {}
         synthesis: dict = {}
 
         initial = {"code": code, "pragmatist": [], "purist": [], "operator": [], "synthesis": {}}
 
-        for event in graph.stream(initial):
-            for node_name, state_update in event.items():
-                if node_name in AGENT_META:
-                    findings = state_update.get(node_name, [])
-                    agent_findings[node_name] = findings
-                    meta = AGENT_META[node_name]
-                    count = len(findings)
-                    label = f"{count} finding{'s' if count != 1 else ''}"
-                    placeholders[node_name].markdown(
-                        f"{meta['icon']} **{meta['label']}** — ✅ {label}"
-                    )
-                elif node_name == "synthesis":
-                    synthesis = state_update.get("synthesis", {})
+        try:
+            for event in graph.stream(initial):
+                for node_name, state_update in event.items():
+                    if node_name in AGENT_META:
+                        findings = state_update.get(node_name, [])
+                        agent_findings[node_name] = findings
+                        meta = AGENT_META[node_name]
+                        count = len(findings)
+                        label = f"{count} finding{'s' if count != 1 else ''}"
+                        placeholders[node_name].markdown(
+                            f"{meta['icon']} **{meta['label']}** - done ({label})"
+                        )
+                    elif node_name == "synthesis":
+                        synthesis = state_update.get("synthesis", {})
+        except Exception as e:
+            st.error(f"Review failed: {e}")
+            st.stop()
 
         # ── Results ───────────────────────────────────────────────────────────
         st.divider()
         findings = synthesis.get("findings", [])
         verdict  = synthesis.get("verdict", "")
-        score    = synthesis.get("quorum_score", 0.0)
 
         fix_count  = sum(1 for f in findings if f.get("call") == "FIX_IT")
         your_count = sum(1 for f in findings if f.get("call") == "YOUR_CALL")
@@ -111,8 +114,7 @@ if run and code.strip():
             confidence = f.get("confidence", "1/3")
             agents     = f.get("agents", [])
 
-            border_color = "#d32f2f" if call == "FIX_IT" else "#f9a825"
-            badge        = "🔴 **FIX IT**" if call == "FIX_IT" else "🟡 **YOUR CALL**"
+            badge = "🔴 **FIX IT**" if call == "FIX_IT" else "🟡 **YOUR CALL**"
             icons        = " ".join(AGENT_META[a]["icon"] for a in agents if a in AGENT_META)
 
             with st.container(border=True):
@@ -132,7 +134,7 @@ if run and code.strip():
                     items = agent_findings.get(key, [])
                     st.markdown(f"{meta['icon']} **{meta['label']}** ({len(items)} findings)")
                     for item in items:
-                        st.markdown(f"- `L{item.get('line','?')}` {item.get('issue','')} — *{item.get('severity','')}*")
+                        st.markdown(f"- `L{item.get('line','?')}` {item.get('issue','')} ({item.get('severity','')})")
                     if not items:
                         st.caption("No findings.")
 

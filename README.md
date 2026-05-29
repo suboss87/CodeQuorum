@@ -4,7 +4,7 @@
 
 ## The Problem
 
-Every AI code review tool simulates one reviewer. One reviewer has one set of biases. When that reviewer is an LLM, it produces fluent, confident output that human reviewers skim and approve — including the bugs.
+Every AI code review tool simulates one reviewer. One reviewer has one set of biases. When that reviewer is an LLM, it produces fluent, confident output that human reviewers skim and approve - including the bugs.
 
 Real code review is a panel. A pragmatist who wants to ship, a purist who cares about correctness, an operator who's been paged at 3am. They disagree. That disagreement is signal, not noise. It tells you where the real tradeoffs live.
 
@@ -25,7 +25,7 @@ A **Synthesis agent** then receives all three sets of findings and does one thin
 - **2+ agents agree on the same root cause** → `FIX IT` (quorum reached, high confidence)
 - **Only 1 agent flags something** → `YOUR CALL` (genuine tradeoff, human judgment needed)
 
-The confidence score per finding comes from inter-agent agreement — not from an LLM self-assessing its own certainty.
+The confidence score per finding comes from inter-agent agreement, not from an LLM self-assessing its own certainty.
 
 ## Architecture
 
@@ -41,7 +41,7 @@ Built on **LangGraph** (fan-out → fan-in superstep), **Anthropic Claude**, and
 
 The graph structure: `START → [pragmatist, purist, operator] → synthesis → END`
 
-Synthesis waits for all three predecessors before running — this is LangGraph's built-in fan-in behaviour, not custom coordination.
+Synthesis waits for all three predecessors before running. This is LangGraph's built-in fan-in behaviour, not custom coordination.
 
 ## Why This Pattern Matters for Enterprise AI
 
@@ -49,10 +49,10 @@ This is a micro-implementation of the exact orchestration pattern needed for ent
 
 - **Specialist agents** with distinct value systems, not generic reviewers
 - **Parallel execution** with structured fan-in
-- **Disagreement as a first-class output** — surfaces human judgment calls rather than replacing them
-- **Confidence from consensus** — trustworthy because it's derived from agreement across independent agents, not from a single model's self-assessment
+- **Disagreement as a first-class output** that surfaces human judgment calls rather than replacing them
+- **Confidence from consensus** - trustworthy because it's derived from agreement across independent agents, not from a single model's self-assessment
 
-At enterprise scale, this pattern applies beyond code: multi-agent review of contracts, compliance checks, customer escalations — any domain where a single AI reviewer is a single point of bias.
+At enterprise scale, this pattern applies beyond code: multi-agent review of contracts, compliance checks, customer escalations - any domain where a single AI reviewer is a single point of bias.
 
 ## Research Basis
 
@@ -103,13 +103,13 @@ def get_user_discount(user, cart_total):
 |---|---|---|
 | `if` chain overwrites premium discount silently | 3/3 | 🔴 FIX IT |
 | No validation on `cart_total` (negative values) | 2/3 | 🔴 FIX IT |
-| No logging of discount applied — invisible in prod | 1/3 | 🟡 YOUR CALL |
+| No logging of discount applied (invisible in prod) | 1/3 | 🟡 YOUR CALL |
 
 *Verdict: Core discount logic has a silent priority bug that affects all premium users with large carts.*
 
 ## Submission
 
-Challenge #2 — The AI Pair Engineer | Careem WorkOS FDE Application
+Challenge #2: The AI Pair Engineer | Careem WorkOS FDE Application
 
 ---
 

@@ -1,15 +1,15 @@
 Challenge: The AI Pair Engineer (#2)
-Project: CodeQuorum — https://github.com/suboss87/CodeQuorum
+Project: CodeQuorum: https://github.com/suboss87/CodeQuorum
 
 SUMMARY (100 words):
 
-Most code review tools simulate one reviewer. Real review is a panel — a pragmatist
+Most code review tools simulate one reviewer. Real review is a panel: a pragmatist
 who wants to ship, a purist who demands correctness, an operator who's been paged at
 3am. They disagree. That disagreement is the signal.
 
 CodeQuorum orchestrates three specialist agents in parallel using LangGraph, then routes
-all findings to a synthesis agent that identifies consensus (fix it — quorum reached)
-versus conflict (your call — genuine tradeoff). Confidence per finding comes from
+all findings to a synthesis agent that identifies consensus (fix it, quorum reached)
+versus conflict (your call, genuine tradeoff). Confidence per finding comes from
 inter-agent agreement, not from one LLM self-assessing certainty. This is the exact
 multi-agent orchestration pattern needed for enterprise WorkOS: specialist agents,
 parallel execution, structured handoff, disagreement as a first-class output.
