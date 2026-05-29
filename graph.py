@@ -1,7 +1,7 @@
 from concurrent.futures import ThreadPoolExecutor
 from typing import TypedDict
 from langgraph.graph import StateGraph, START, END
-from agents import call_agent, call_synthesis, PRAGMATIST_PROMPT, PURIST_PROMPT, OPERATOR_PROMPT
+from agents import call_agent, call_synthesis, PRAGMATIST_PROMPT, PURIST_PROMPT, OPERATOR_PROMPT, DEFAULT_MODEL
 
 REVIEWER_AGENTS = [
     ("pragmatist", PRAGMATIST_PROMPT),
@@ -12,6 +12,7 @@ REVIEWER_AGENTS = [
 
 class ReviewState(TypedDict):
     code: str
+    model: str
     pragmatist: list
     purist: list
     operator: list
@@ -19,13 +20,18 @@ class ReviewState(TypedDict):
 
 
 def agents_node(state: ReviewState) -> dict:
+    model = state.get("model", DEFAULT_MODEL)
     with ThreadPoolExecutor(max_workers=3) as pool:
-        futures = {name: pool.submit(call_agent, prompt, state["code"]) for name, prompt in REVIEWER_AGENTS}
+        futures = {
+            name: pool.submit(call_agent, prompt, state["code"], model)
+            for name, prompt in REVIEWER_AGENTS
+        }
         return {name: f.result() for name, f in futures.items()}
 
 
 def synthesis_node(state: ReviewState) -> dict:
-    return {"synthesis": call_synthesis(state["pragmatist"], state["purist"], state["operator"])}
+    model = state.get("model", DEFAULT_MODEL)
+    return {"synthesis": call_synthesis(state["pragmatist"], state["purist"], state["operator"], model)}
 
 
 def build_graph():

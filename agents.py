@@ -1,8 +1,13 @@
 import json
 import re
-import anthropic
+import os
 
-MODEL = "claude-sonnet-4-6"
+MODELS = {
+    "Claude Sonnet 4.6": "claude-sonnet-4-6",
+    "GPT-4o":            "gpt-4o",
+    "Gemini 2.0 Flash":  "gemini-2.0-flash",
+}
+DEFAULT_MODEL = "claude-sonnet-4-6"
 
 PRAGMATIST_PROMPT = """You are the Pragmatist, a senior engineer who values shipping working software.
 You ask: "Is this actually broken? Would I block this PR?"
@@ -45,8 +50,8 @@ SYNTHESIS_PROMPT = """You receive code review findings from three engineers with
 Your job: identify consensus and surface genuine conflict.
 
 Rules:
-- If 2 or more agents flag the SAME root cause (even described differently): quorum reached → FIX_IT
-- If only 1 agent flags something: contested → YOUR_CALL (a real tradeoff, not a clear bug)
+- If 2 or more agents flag the SAME root cause (even described differently): quorum reached, call is FIX_IT
+- If only 1 agent flags something: contested, call is YOUR_CALL (a real tradeoff, not a clear bug)
 - Merge duplicate findings into one canonical description
 - The quorum_score is the fraction of findings that reached 2/3 or 3/3 agreement
 
@@ -58,7 +63,8 @@ Return ONLY valid JSON (no markdown fences, no extra text). Example structure:
       "agents": ["pragmatist", "purist"],
       "confidence": "2/3",
       "call": "FIX_IT",
-      "fix": "Use elif or combine conditions to preserve premium discount"
+      "fix": "Use elif or combine conditions to preserve premium discount",
+      "test": "assert get_user_discount(premium_user, 150) > get_user_discount(regular_user, 150)"
     }
   ],
   "verdict": "Silent logic bug affects all premium users with large carts.",
@@ -69,7 +75,8 @@ Rules for field values:
 - confidence: must be exactly "3/3", "2/3", or "1/3"
 - call: must be exactly "FIX_IT" or "YOUR_CALL"
 - quorum_score: float 0.0 to 1.0, fraction of findings at 2/3 or higher
-- agents: list containing only the names that flagged this issue"""
+- agents: list containing only the names that flagged this issue
+- test: for FIX_IT findings only, one concrete test case that would catch this bug. For YOUR_CALL, omit this field."""
 
 
 def _parse_json(text: str, fallback):
@@ -82,27 +89,65 @@ def _parse_json(text: str, fallback):
         return fallback
 
 
-def call_agent(system_prompt: str, code: str) -> list[dict]:
+def _call_claude(system: str, user: str, max_tokens: int) -> str:
+    import anthropic
     client = anthropic.Anthropic()
     response = client.messages.create(
-        model=MODEL,
-        max_tokens=1024,
-        system=system_prompt,
-        messages=[{"role": "user", "content": f"```\n{code}\n```"}],
+        model="claude-sonnet-4-6",
+        max_tokens=max_tokens,
+        system=system,
+        messages=[{"role": "user", "content": user}],
     )
-    return _parse_json(response.content[0].text, [])
+    return response.content[0].text
 
 
-def call_synthesis(pragmatist: list, purist: list, operator: list) -> dict:
-    client = anthropic.Anthropic()
+def _call_openai(system: str, user: str, max_tokens: int) -> str:
+    from openai import OpenAI
+    client = OpenAI()
+    response = client.chat.completions.create(
+        model="gpt-4o",
+        max_tokens=max_tokens,
+        messages=[
+            {"role": "system", "content": system},
+            {"role": "user", "content": user},
+        ],
+    )
+    return response.choices[0].message.content
+
+
+def _call_gemini(system: str, user: str, max_tokens: int) -> str:
+    import google.generativeai as genai
+    genai.configure(api_key=os.environ["GEMINI_API_KEY"])
+    model = genai.GenerativeModel(
+        model_name="gemini-2.0-flash",
+        system_instruction=system,
+    )
+    response = model.generate_content(
+        user,
+        generation_config=genai.types.GenerationConfig(max_output_tokens=max_tokens),
+    )
+    return response.text
+
+
+def _llm_call(model: str, system: str, user: str, max_tokens: int) -> str:
+    if model.startswith("claude"):
+        return _call_claude(system, user, max_tokens)
+    elif model.startswith("gpt"):
+        return _call_openai(system, user, max_tokens)
+    elif model.startswith("gemini"):
+        return _call_gemini(system, user, max_tokens)
+    raise ValueError(f"Unknown model: {model}")
+
+
+def call_agent(system_prompt: str, code: str, model: str = DEFAULT_MODEL) -> list[dict]:
+    text = _llm_call(model, system_prompt, f"```\n{code}\n```", 1024)
+    return _parse_json(text, [])
+
+
+def call_synthesis(pragmatist: list, purist: list, operator: list, model: str = DEFAULT_MODEL) -> dict:
     payload = json.dumps({"pragmatist": pragmatist, "purist": purist, "operator": operator}, indent=2)
-    response = client.messages.create(
-        model=MODEL,
-        max_tokens=2048,
-        system=SYNTHESIS_PROMPT,
-        messages=[{"role": "user", "content": payload}],
-    )
+    text = _llm_call(model, SYNTHESIS_PROMPT, payload, 2048)
     return _parse_json(
-        response.content[0].text,
+        text,
         {"findings": [], "verdict": "Synthesis unavailable.", "quorum_score": 0.0},
     )
