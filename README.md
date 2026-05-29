@@ -1,71 +1,97 @@
-# ⚖️ CodeQuorum
+# CodeQuorum
 
-> *A finding is real when agents agree. A tradeoff is real when they don't.*
+**Three AI reviewers. Different philosophies. Confidence from consensus, signal from conflict.**
 
-**Challenge #2 — The AI Pair Engineer** | Careem WorkOS FDE Application
+Challenge 2: The AI Pair Engineer | Careem WorkOS FDE Application
 
 ---
 
-## What It Does
+## The Problem
 
-Most code review tools simulate one reviewer. One reviewer has one set of biases.
+Most AI code review tools simulate one reviewer. One reviewer has one set of biases. When that reviewer is an LLM, it produces fluent, confident output that looks authoritative but reflects a single perspective.
 
-Real engineering review is a panel. A pragmatist who wants to ship. A purist who cares about correctness. An operator who's been paged at 3am. They disagree. That disagreement is signal.
+Real engineering review is a panel. A pragmatist who wants to ship. A purist who cares about correctness. An operator who has been paged at 3am. They disagree. That disagreement tells you where the real tradeoffs live.
 
-CodeQuorum runs three specialist agents in parallel — each with a distinct philosophy — then surfaces where they agree (fix it, no debate) and where they conflict (your call, genuine tradeoff). Confidence comes from inter-agent consensus, not from one LLM self-assessing certainty.
+CodeQuorum is built around that idea.
 
-## How It Works
-
-```
-Your GitHub repo
-      │
-      ├──→ 🚢 Pragmatist  "Will this actually break?"
-      ├──→ 🎯 Purist      "Is this actually correct?"     ──→ ⚖️ Synthesis
-      └──→ 🔧 Operator    "Will I know when it fails?"
-                │                │                │
-           [parallel, ~4s — not 12s sequential]
-```
-
-**Synthesis agent** receives all three finding sets and does two things:
-- **2+ agents agree** on the same root cause → `FIX IT` + suggested refactor + test case
-- **Only 1 agent flags** something → `YOUR CALL` (genuine tradeoff — human judgment needed)
-
-## What You Get Per Finding
-
-| Field | Description |
-|---|---|
-| Issue | What is wrong and why |
-| Fix | Concrete refactor suggestion |
-| Test | A specific test that would catch this bug |
-| Confidence | 3/3, 2/3, or 1/3 — from inter-agent agreement |
-| Call | FIX IT or YOUR CALL |
+---
 
 ## Architecture
 
-Built on **LangGraph** (fan-out → fan-in), **ThreadPoolExecutor** (true parallel API calls), and **Streamlit**.
+```mermaid
+flowchart LR
+    A(["👤 Developer"]) -->|GitHub URL| B["🔗 GitHub\nOAuth + Repo Picker"]
+    B -->|Code files| C["📄 Code Input"]
 
+    C --> D["🚢 Pragmatist\nWill this break?"]
+    C --> E["🎯 Purist\nIs this correct?"]
+    C --> F["🔧 Operator\nWill I know?"]
+
+    subgraph G ["  Review Agents  (run in parallel)  "]
+        D
+        E
+        F
+    end
+
+    D --> H["⚖️ Synthesis\nConsensus Engine"]
+    E --> H
+    F --> H
+
+    H --> I{Quorum?}
+    I -->|"2+ agents agree"| J["🔴 FIX IT\n+ Refactor + Test"]
+    I -->|"1 agent flags"| K["🟡 YOUR CALL\nGenuine tradeoff"]
 ```
-START → agents_node (parallel) → synthesis_node → END
-```
 
-Supports **Claude Sonnet 4.6**, **GPT-4o**, and **Gemini 2.0 Flash** — switch model in the sidebar.
+---
 
-GitHub integration: connect your account via OAuth, pick any repo from your list (public or private), review starts immediately.
+## How It Works
 
-## Why This Pattern Matters for Enterprise
+Three specialist agents review your code independently. Each has a different philosophy and a different question it's trying to answer.
 
-This is a micro-implementation of the orchestration pattern needed for enterprise WorkOS:
+| Agent | Philosophy | Question |
+|---|---|---|
+| Pragmatist | Ship working software | Will this actually break in production? |
+| Purist | Correctness above all | Does this code do what it claims? |
+| Operator | Survive at 3am | When this fails, will I know? Can I fix it fast? |
 
-- **Specialist agents** with distinct value systems, not generic reviewers
-- **Parallel execution** with structured fan-in — no wasted latency
-- **Disagreement as first-class output** — surfaces human judgment calls rather than replacing them
-- **Confidence from consensus** — trustworthy because it's derived from agreement, not self-assessment
+A synthesis agent then receives all three sets of findings and applies one rule: if two or more agents flag the same root cause, it is a real bug. If only one agent flags something, it is a genuine tradeoff that needs a human decision.
 
-At enterprise scale this applies beyond code: multi-agent review of contracts, compliance documents, customer escalations — any domain where a single AI reviewer is a single point of bias.
+**FIX IT findings include:**
+- What is wrong and why
+- A concrete refactor suggestion
+- A specific test case that would catch this bug
 
-## Research Basis
+**YOUR CALL findings include:**
+- What one reviewer saw
+- Why it might or might not matter
+- The tradeoff to consider
 
-Multi-agent debate (MAD) improves factuality and catches more errors than single-agent review. The key insight: **the information is in the disagreement**, not just the consensus. CodeQuorum is designed around this property.
+Confidence comes from inter-agent agreement, not from an LLM rating its own certainty.
+
+---
+
+## Tech Stack
+
+- **LangGraph** for fan-out/fan-in agent orchestration
+- **ThreadPoolExecutor** for true parallel API calls (4 seconds vs 15 seconds sequential)
+- **Multi-model** support: Claude Sonnet 4.6, GPT-4o, Gemini 2.0 Flash
+- **GitHub OAuth** for one-click repo access (public and private)
+- **Streamlit** for the UI
+
+---
+
+## Why This Pattern Matters
+
+This is the orchestration pattern at the heart of enterprise WorkOS:
+
+- Specialist agents with distinct value systems
+- Parallel execution with structured handoff
+- Disagreement as a first-class output, not noise to filter
+- Confidence derived from consensus, not self-assessment
+
+The same pattern applies at scale beyond code review: contract analysis, compliance checks, customer escalations. Any domain where a single AI reviewer is a single point of bias.
+
+---
 
 ## Quick Start
 
@@ -73,17 +99,20 @@ Multi-agent debate (MAD) improves factuality and catches more errors than single
 git clone https://github.com/suboss87/CodeQuorum
 cd CodeQuorum
 pip install -r requirements.txt
-cp .env.example .env   # add your API key
+cp .env.example .env
+# Add your API key to .env
 streamlit run app.py
 ```
 
-For GitHub OAuth (one-click repo connect), see `.env.example`.
+For GitHub OAuth setup (one-click repo connect), see `.env.example`.
 
 ## Tests
 
 ```bash
-pytest tests/ -v   # 11 tests, all passing
+pytest tests/ -v
 ```
+
+11 tests, all passing.
 
 ---
 
