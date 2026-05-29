@@ -2,7 +2,7 @@
 
 **An AI that codes alongside developers — detecting design flaws, proposing tests, and refactoring.**
 
-Add one YAML file to your repo. Every pull request is automatically reviewed and results posted as a comment — no manual step, no context switching.
+Add one YAML file to your repo. Every pull request is automatically reviewed and results posted as a PR comment — no UI, no manual step, no context switching.
 
 ---
 
@@ -23,31 +23,31 @@ When only one agent flags something, it surfaces it as a genuine design tradeoff
 ## How It Works
 
 ```mermaid
-flowchart TD
-    A([👤 Developer opens a PR]) --> B
+flowchart LR
+    A([👤 Developer\nopens a PR]) --> B
 
-    subgraph B ["GitHub detects the PR — Action triggers automatically"]
-        direction LR
-        B1[Checkout code] --> B2[Identify changed files\nvia git diff]
+    subgraph B ["⚡ GitHub Action triggers automatically"]
+        direction TB
+        B1["Checkout repo\nwith full git history"] --> B2["git diff — identify\nonly the changed files"]
     end
 
     B --> C
 
-    subgraph C ["Three agents review in parallel  ~4 seconds "]
-        direction LR
+    subgraph C ["🔍 Three agents review in parallel  ~4 seconds "]
+        direction TB
         P["🚢 Pragmatist\nWill this break in production?"]
-        U["🎯 Purist\nDoes this code do what it claims?"]
-        O["🔧 Operator\nWhen it fails, will anyone know?"]
+        U["🎯 Purist\nDoes this do what it claims?"]
+        O["🔧 Operator\nWhen it fails, will I know?"]
     end
 
-    C --> D["⚖️ Synthesis\nCompares all three sets of findings"]
+    C --> D["⚖️ Synthesis\nCross-references all findings\nidentifies shared root causes"]
 
-    D --> E{How many agents\nflagged the same root cause?}
+    D --> E{"Same root cause\nflagged by..."}
 
-    E -->|2 or 3 agents agreed| F["🔴 FIX IT\nDesign flaw confirmed\n+ Refactored code\n+ Proposed test"]
-    E -->|Only 1 agent flagged| G["🟡 YOUR CALL\nGenuine design tradeoff\nHuman decides"]
+    E -->|"2 or 3 agents"| F["🔴 FIX IT\nDesign flaw confirmed\nRefactored code included\nFailing test included"]
+    E -->|"1 agent only"| G["🟡 YOUR CALL\nGenuine design tradeoff\nSurfaced for human decision"]
 
-    F --> H([💬 Posted as PR comment automatically])
+    F --> H(["💬 Results posted\nas PR comment"])
     G --> H
 ```
 
@@ -159,9 +159,11 @@ Open a PR. CodeQuorum reviews it and posts the comment automatically.
 
 ---
 
-## Interactive UI
+## Interactive UI (optional)
 
-To review any repo manually:
+The GitHub Action is the primary way to use CodeQuorum — fully automatic, no UI needed.
+
+A Streamlit UI is also available for reviewing any repo on demand:
 
 ```bash
 git clone https://github.com/suboss87/CodeQuorum
