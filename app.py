@@ -297,9 +297,13 @@ elif "last_results" in st.session_state:
                         with col_a:
                             st.markdown(f"🔴 **{f.get('issue', '')}**")
                             if f.get("fix"):
-                                st.caption(f"↳ Fix: {f['fix']}")
+                                st.caption(f"↳ {f['fix']}")
+                            if f.get("refactored_code"):
+                                st.markdown("**Refactored code:**")
+                                st.code(f["refactored_code"], language="python")
                             if f.get("test"):
-                                st.code(f['test'], language="python")
+                                st.markdown("**Suggested test:**")
+                                st.code(f["test"], language="python")
                         with col_b:
                             st.caption(f.get("confidence", ""))
                             st.caption(icons)

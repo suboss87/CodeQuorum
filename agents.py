@@ -47,7 +47,7 @@ Return ONLY a JSON array (no markdown fences, no explanation):
 Maximum 3 findings. Return [] if failure modes are well-handled."""
 
 SYNTHESIS_PROMPT = """You receive code review findings from three engineers with fundamentally different value systems.
-Your job: identify consensus and surface genuine conflict.
+Your job: identify consensus, surface genuine conflict, and produce the actual refactored code for every confirmed bug.
 
 Rules:
 - If 2 or more agents flag the SAME root cause (even described differently): quorum reached, call is FIX_IT
@@ -64,6 +64,7 @@ Return ONLY valid JSON (no markdown fences, no extra text). Example structure:
       "confidence": "2/3",
       "call": "FIX_IT",
       "fix": "Use elif or combine conditions to preserve premium discount",
+      "refactored_code": "def get_user_discount(user, cart_total):\n    discount = 0\n    if user.is_premium:\n        discount = cart_total * 0.1\n    elif cart_total > 100:\n        discount = cart_total * 0.15\n    if user.loyalty_years > 5:\n        discount += cart_total * 0.05\n    return cart_total - discount",
       "test": "assert get_user_discount(premium_user, 150) > get_user_discount(regular_user, 150)"
     }
   ],
@@ -76,7 +77,8 @@ Rules for field values:
 - call: must be exactly "FIX_IT" or "YOUR_CALL"
 - quorum_score: float 0.0 to 1.0, fraction of findings at 2/3 or higher
 - agents: list containing only the names that flagged this issue
-- test: for FIX_IT findings only, one concrete test case that would catch this bug. For YOUR_CALL, omit this field."""
+- refactored_code: for FIX_IT findings only, the actual corrected code block that fixes this specific issue. Real working code, not a description. Use \\n for newlines.
+- test: for FIX_IT findings only, one concrete test case that would catch this bug. For YOUR_CALL, omit both refactored_code and test."""
 
 
 def _parse_json(text: str, fallback):
