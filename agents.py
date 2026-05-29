@@ -1,4 +1,5 @@
 import json
+import re
 import anthropic
 
 MODEL = "claude-sonnet-4-6"
@@ -73,9 +74,8 @@ Rules for field values:
 
 def _parse_json(text: str, fallback):
     text = text.strip()
-    if text.startswith("```"):
-        parts = text.split("```")
-        text = parts[1].lstrip("json").strip() if len(parts) > 1 else text
+    text = re.sub(r"^```[a-z]*\n?", "", text)
+    text = re.sub(r"\n?```$", "", text)
     try:
         return json.loads(text)
     except json.JSONDecodeError:
