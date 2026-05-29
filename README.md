@@ -2,68 +2,64 @@
 
 **Three AI reviewers. Different philosophies. Confidence from consensus, signal from conflict.**
 
-Add one YAML file to your repo. Every pull request gets reviewed by three specialist AI agents in parallel and results posted as a PR comment — automatically.
+Add one YAML file to your repo. Every pull request gets reviewed by three specialist AI agents in parallel — results posted as a PR comment, automatically, with no manual step.
 
 ---
 
-## Two Ways to Use CodeQuorum
+## Two Ways to Use
 
 | | GitHub Action | Streamlit UI |
 |---|---|---|
-| **What it does** | Auto-reviews every PR | Manual, interactive review |
-| **Setup** | 2 steps | `pip install` + API key |
-| **Best for** | Your team's daily workflow | Exploring a repo, one-off reviews |
+| **What it does** | Reviews every PR automatically | On-demand, interactive review |
+| **Setup** | 2 steps — one YAML file + one secret | Clone + `pip install` + API key |
+| **Best for** | Your team's daily workflow | Exploring a new repo, one-off audits |
 
 ---
 
-## GitHub Action — Auto-Review Every PR
+## GitHub Action — Automatic PR Review
 
 ### What You Get
 
-Every PR automatically gets a comment like this:
+Every pull request receives a comment structured like this:
 
-```
-## ⚖️ CodeQuorum Review
+---
 
-Reviewed: `my-repo (3 changed files)` · Model: Claude Sonnet 4.6
-Findings: 4 total · 🔴 2 Fix It · 🟡 2 Your Call
+> ### ⚖️ CodeQuorum Review
+>
+> **Reviewed:** `my-repo (3 changed files)` · **Model:** Claude Sonnet 4.6
+> **Findings:** 4 total · 🔴 2 Fix It · 🟡 2 Your Call
+>
+> *Two bugs with clear fixes. Two tradeoffs worth a team discussion.*
+>
+> ---
+>
+> ### 🔴 Fix It — Quorum Reached (2+ agents agreed)
+>
+> **Discount logic silently overwrites premium discount** — `high confidence` 🚢 🎯
+>
+> *Fix: use `max()` so the larger discount wins, then stack the loyalty bonus on top.*
+>
+> Includes refactored code and a failing test that catches this exact bug.
+>
+> ---
+>
+> ### 🟡 Your Call — Genuine Tradeoff (1 agent flagged)
+>
+> **No audit log when discount is applied** 🔧
+>
+> *Worth adding if this feeds into billing — silent discounts are hard to investigate.*
 
-> Two bugs with clear fixes. Two tradeoffs worth a team decision.
+---
 
-### 🔴 Fix It — Quorum Reached (2+ agents agreed)
+**Fix It** findings always include: what is wrong, a concrete refactor with rewritten code, and a test that would have caught the bug.
 
-**Discount logic overwrites premium discount silently** — `high` 🚢 🎯
+**Your Call** findings are real tradeoffs — flagged by one agent, not noise, but not a clear bug either. You decide.
 
-*Add an explicit precedence order: loyalty bonus should stack, not overwrite.*
+### Setup
 
-**Refactored:**
-```python
-def get_user_discount(user, cart_total):
-    discount = cart_total * 0.15 if cart_total > 100 else 0
-    if user.is_premium:
-        discount = max(discount, cart_total * 0.10)
-    if user.loyalty_years > 5:
-        discount += cart_total * 0.05
-    return cart_total - discount
-```
+**Step 1 — Create this file in your repo:**
 
-**Test:**
-```python
-def test_premium_and_high_value_discount():
-    user = User(is_premium=True, loyalty_years=0)
-    assert get_user_discount(user, 120) == 120 * 0.85  # 15% not 10%
-```
-
-### 🟡 Your Call — Genuine Tradeoff (1 agent flagged)
-
-**No logging on discount applied** 🔧
-
-*Add audit log if this feeds into billing — silent discounts are hard to debug.*
-```
-
-### Setup (2 Steps)
-
-**Step 1** — Create `.github/workflows/codequorum.yml` in your repo:
+`.github/workflows/codequorum.yml`
 
 ```yaml
 name: CodeQuorum Review
@@ -110,13 +106,13 @@ jobs:
             });
 ```
 
-**Step 2** — Add your API key as a repo secret:
+**Step 2 — Add your API key as a repo secret:**
 
-`Settings → Secrets and variables → Actions → New repository secret`
+Go to `Settings → Secrets and variables → Actions → New repository secret`
 
-Name: `ANTHROPIC_API_KEY`
+Set the name to `ANTHROPIC_API_KEY` and paste your [Anthropic API key](https://console.anthropic.com/).
 
-That's it. Open a PR and CodeQuorum reviews it automatically.
+Open a PR. CodeQuorum reviews it automatically and posts the comment.
 
 ---
 
@@ -126,76 +122,97 @@ That's it. Open a PR and CodeQuorum reviews it automatically.
 git clone https://github.com/suboss87/CodeQuorum
 cd CodeQuorum
 pip install -r requirements.txt
-cp .env.example .env   # add ANTHROPIC_API_KEY
+cp .env.example .env   # add your ANTHROPIC_API_KEY
 streamlit run app.py
 ```
 
-Connect your GitHub account, pick a repo from the dropdown, click **Convene Quorum**.
+Connect your GitHub account → pick a repo from the dropdown → click **Convene Quorum**.
 
-For GitHub OAuth setup (private repos), see `.env.example`.
+For private repo access and GitHub OAuth setup, see `.env.example`.
 
 ---
 
 ## How It Works
 
-Three specialist agents review your code independently and in parallel. Each has a different philosophy.
+### Three agents, three philosophies
 
-| Agent | Philosophy | Question |
+CodeQuorum runs three specialist reviewers in parallel. Each asks a different question:
+
+| Agent | Mindset | Question |
 |---|---|---|
-| 🚢 Pragmatist | Ship working software | Will this actually break in production? |
-| 🎯 Purist | Correctness above all | Does this code do what it claims? |
-| 🔧 Operator | Survive at 3am | When this fails, will I know? Can I fix it fast? |
+| 🚢 **Pragmatist** | Ship working software | Will this actually break in production? |
+| 🎯 **Purist** | Correctness above all | Does this code do what it claims to do? |
+| 🔧 **Operator** | Survive the 3am incident | When this fails, will anyone know? |
 
-A synthesis agent then applies one rule: **if two or more agents flag the same root cause, it is a real bug (FIX IT)**. If only one flags something, it is a genuine tradeoff that needs a human decision (YOUR CALL).
+They review independently. Their disagreement is the signal.
 
-FIX IT findings include:
-- What is wrong and why
-- A concrete refactor — actual rewritten code, not a suggestion
-- A specific test case that would catch this bug
+### Confidence from consensus, not self-assessment
 
-YOUR CALL findings include:
-- What one reviewer saw
-- The tradeoff to consider
+A synthesis agent receives all three sets of findings and applies one rule:
 
-Confidence comes from inter-agent agreement, not from an LLM rating its own certainty.
+- **2 or more agents flag the same root cause** → it is a real bug. **Fix It.**
+- **Only 1 agent flags something** → it is a genuine tradeoff. **Your Call.**
+
+An LLM cannot reliably rate its own confidence. But when three agents with different priorities all arrive at the same conclusion — that convergence is meaningful.
+
+### What gets reviewed on a PR
+
+The GitHub Action uses `git diff` to identify exactly which files changed in the PR. Only those files are reviewed, not the entire codebase. This keeps reviews fast and focused.
 
 ---
 
 ## Architecture
 
 ```mermaid
-flowchart LR
-    A(["👤 Developer"]) -->|PR opened| B["🔗 GitHub Action\nor Streamlit UI"]
-    B -->|Code files| C["📄 Code Input"]
+flowchart TD
+    A([👤 Developer opens PR]) --> B
 
-    C --> D["🚢 Pragmatist\nWill this break?"]
-    C --> E["🎯 Purist\nIs this correct?"]
-    C --> F["🔧 Operator\nWill I know?"]
-
-    subgraph G ["  Review Agents  (parallel, ~4s)  "]
-        D
-        E
-        F
+    subgraph B ["GitHub Action triggers automatically"]
+        direction LR
+        B1[Checkout code] --> B2[Identify changed files\nvia git diff]
     end
 
-    D --> H["⚖️ Synthesis\nConsensus Engine"]
-    E --> H
-    F --> H
+    B --> C
 
-    H --> I{Quorum?}
-    I -->|"2+ agents agree"| J["🔴 FIX IT\n+ Refactor + Test"]
-    I -->|"1 agent flags"| K["🟡 YOUR CALL\nGenuine tradeoff"]
+    subgraph C ["Three agents run in parallel  ~4 seconds "]
+        direction LR
+        P["🚢 Pragmatist\nWill this break?"]
+        U["🎯 Purist\nIs this correct?"]
+        O["🔧 Operator\nWill I know?"]
+    end
+
+    C --> D["⚖️ Synthesis Agent\nCompares all findings"]
+
+    D --> E{How many agents\nagreed?}
+
+    E -->|2 or more agree| F["🔴 FIX IT\nRefactored code + failing test"]
+    E -->|Only 1 flagged| G["🟡 YOUR CALL\nGenuine tradeoff to consider"]
+
+    F --> H([💬 Posted as PR comment])
+    G --> H
 ```
 
 ---
 
 ## Tech Stack
 
-- **LangGraph** — fan-out / fan-in agent orchestration
-- **ThreadPoolExecutor** — true parallel API calls (4s vs 15s sequential)
-- **Multi-model** — Claude Sonnet 4.6, GPT-4o, Gemini 2.0 Flash
-- **GitHub OAuth** — one-click repo access (public and private)
-- **Streamlit** — UI
+| What | Why |
+|---|---|
+| **LangGraph** | Fan-out → fan-in agent orchestration with typed state |
+| **ThreadPoolExecutor** | True parallel API calls — 4s instead of 15s sequential |
+| **Multi-model support** | Claude Sonnet 4.6, GPT-4o, Gemini 2.0 Flash — your choice |
+| **GitHub OAuth** | One-click repo connect — public and private repos |
+| **Streamlit** | Interactive UI for on-demand review |
+
+---
+
+## Why This Pattern
+
+Most AI code review tools simulate one reviewer. One reviewer has one set of biases. When that reviewer is an LLM, it produces fluent, confident output that reflects a single perspective.
+
+Real engineering review is a panel. A pragmatist who wants to ship. A purist who cares about correctness. An operator who has been paged at 3am. They disagree. That disagreement tells you where the real tradeoffs are.
+
+CodeQuorum is built around that idea — and the same pattern scales beyond code review to contract analysis, compliance checks, or any domain where a single AI reviewer is a single point of bias.
 
 ---
 
