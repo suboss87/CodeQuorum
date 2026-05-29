@@ -2,17 +2,162 @@
 
 **Three AI reviewers. Different philosophies. Confidence from consensus, signal from conflict.**
 
-Challenge 2: The AI Pair Engineer | Careem WorkOS FDE Application
+Add one YAML file to your repo. Every pull request gets reviewed by three specialist AI agents in parallel and results posted as a PR comment — automatically.
 
 ---
 
-## The Problem
+## Two Ways to Use CodeQuorum
 
-Most AI code review tools simulate one reviewer. One reviewer has one set of biases. When that reviewer is an LLM, it produces fluent, confident output that looks authoritative but reflects a single perspective.
+| | GitHub Action | Streamlit UI |
+|---|---|---|
+| **What it does** | Auto-reviews every PR | Manual, interactive review |
+| **Setup** | 2 steps | `pip install` + API key |
+| **Best for** | Your team's daily workflow | Exploring a repo, one-off reviews |
 
-Real engineering review is a panel. A pragmatist who wants to ship. A purist who cares about correctness. An operator who has been paged at 3am. They disagree. That disagreement tells you where the real tradeoffs live.
+---
 
-CodeQuorum is built around that idea.
+## GitHub Action — Auto-Review Every PR
+
+### What You Get
+
+Every PR automatically gets a comment like this:
+
+```
+## ⚖️ CodeQuorum Review
+
+Reviewed: `my-repo (3 changed files)` · Model: Claude Sonnet 4.6
+Findings: 4 total · 🔴 2 Fix It · 🟡 2 Your Call
+
+> Two bugs with clear fixes. Two tradeoffs worth a team decision.
+
+### 🔴 Fix It — Quorum Reached (2+ agents agreed)
+
+**Discount logic overwrites premium discount silently** — `high` 🚢 🎯
+
+*Add an explicit precedence order: loyalty bonus should stack, not overwrite.*
+
+**Refactored:**
+```python
+def get_user_discount(user, cart_total):
+    discount = cart_total * 0.15 if cart_total > 100 else 0
+    if user.is_premium:
+        discount = max(discount, cart_total * 0.10)
+    if user.loyalty_years > 5:
+        discount += cart_total * 0.05
+    return cart_total - discount
+```
+
+**Test:**
+```python
+def test_premium_and_high_value_discount():
+    user = User(is_premium=True, loyalty_years=0)
+    assert get_user_discount(user, 120) == 120 * 0.85  # 15% not 10%
+```
+
+### 🟡 Your Call — Genuine Tradeoff (1 agent flagged)
+
+**No logging on discount applied** 🔧
+
+*Add audit log if this feeds into billing — silent discounts are hard to debug.*
+```
+
+### Setup (2 Steps)
+
+**Step 1** — Create `.github/workflows/codequorum.yml` in your repo:
+
+```yaml
+name: CodeQuorum Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - run: pip install anthropic langgraph python-dotenv requests
+
+      - run: |
+          curl -sO https://raw.githubusercontent.com/suboss87/CodeQuorum/main/cli.py
+          curl -sO https://raw.githubusercontent.com/suboss87/CodeQuorum/main/agents.py
+          curl -sO https://raw.githubusercontent.com/suboss87/CodeQuorum/main/graph.py
+
+      - run: python cli.py --path . --format markdown > review.md
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const body = require('fs').readFileSync('review.md', 'utf8');
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body
+            });
+```
+
+**Step 2** — Add your API key as a repo secret:
+
+`Settings → Secrets and variables → Actions → New repository secret`
+
+Name: `ANTHROPIC_API_KEY`
+
+That's it. Open a PR and CodeQuorum reviews it automatically.
+
+---
+
+## Streamlit UI — Interactive Review
+
+```bash
+git clone https://github.com/suboss87/CodeQuorum
+cd CodeQuorum
+pip install -r requirements.txt
+cp .env.example .env   # add ANTHROPIC_API_KEY
+streamlit run app.py
+```
+
+Connect your GitHub account, pick a repo from the dropdown, click **Convene Quorum**.
+
+For GitHub OAuth setup (private repos), see `.env.example`.
+
+---
+
+## How It Works
+
+Three specialist agents review your code independently and in parallel. Each has a different philosophy.
+
+| Agent | Philosophy | Question |
+|---|---|---|
+| 🚢 Pragmatist | Ship working software | Will this actually break in production? |
+| 🎯 Purist | Correctness above all | Does this code do what it claims? |
+| 🔧 Operator | Survive at 3am | When this fails, will I know? Can I fix it fast? |
+
+A synthesis agent then applies one rule: **if two or more agents flag the same root cause, it is a real bug (FIX IT)**. If only one flags something, it is a genuine tradeoff that needs a human decision (YOUR CALL).
+
+FIX IT findings include:
+- What is wrong and why
+- A concrete refactor — actual rewritten code, not a suggestion
+- A specific test case that would catch this bug
+
+YOUR CALL findings include:
+- What one reviewer saw
+- The tradeoff to consider
+
+Confidence comes from inter-agent agreement, not from an LLM rating its own certainty.
 
 ---
 
@@ -20,14 +165,14 @@ CodeQuorum is built around that idea.
 
 ```mermaid
 flowchart LR
-    A(["👤 Developer"]) -->|GitHub URL| B["🔗 GitHub\nOAuth + Repo Picker"]
+    A(["👤 Developer"]) -->|PR opened| B["🔗 GitHub Action\nor Streamlit UI"]
     B -->|Code files| C["📄 Code Input"]
 
     C --> D["🚢 Pragmatist\nWill this break?"]
     C --> E["🎯 Purist\nIs this correct?"]
     C --> F["🔧 Operator\nWill I know?"]
 
-    subgraph G ["  Review Agents  (run in parallel)  "]
+    subgraph G ["  Review Agents  (parallel, ~4s)  "]
         D
         E
         F
@@ -44,124 +189,21 @@ flowchart LR
 
 ---
 
-## How It Works
-
-Three specialist agents review your code independently. Each has a different philosophy and a different question it's trying to answer.
-
-| Agent | Philosophy | Question |
-|---|---|---|
-| Pragmatist | Ship working software | Will this actually break in production? |
-| Purist | Correctness above all | Does this code do what it claims? |
-| Operator | Survive at 3am | When this fails, will I know? Can I fix it fast? |
-
-A synthesis agent then receives all three sets of findings and applies one rule: if two or more agents flag the same root cause, it is a real bug. If only one agent flags something, it is a genuine tradeoff that needs a human decision.
-
-**FIX IT findings include:**
-- What is wrong and why
-- A concrete refactor suggestion
-- A specific test case that would catch this bug
-
-**YOUR CALL findings include:**
-- What one reviewer saw
-- Why it might or might not matter
-- The tradeoff to consider
-
-Confidence comes from inter-agent agreement, not from an LLM rating its own certainty.
-
----
-
 ## Tech Stack
 
-- **LangGraph** for fan-out/fan-in agent orchestration
-- **ThreadPoolExecutor** for true parallel API calls (4 seconds vs 15 seconds sequential)
-- **Multi-model** support: Claude Sonnet 4.6, GPT-4o, Gemini 2.0 Flash
-- **GitHub OAuth** for one-click repo access (public and private)
-- **Streamlit** for the UI
+- **LangGraph** — fan-out / fan-in agent orchestration
+- **ThreadPoolExecutor** — true parallel API calls (4s vs 15s sequential)
+- **Multi-model** — Claude Sonnet 4.6, GPT-4o, Gemini 2.0 Flash
+- **GitHub OAuth** — one-click repo access (public and private)
+- **Streamlit** — UI
 
 ---
-
-## Why This Pattern Matters
-
-This is the orchestration pattern at the heart of enterprise WorkOS:
-
-- Specialist agents with distinct value systems
-- Parallel execution with structured handoff
-- Disagreement as a first-class output, not noise to filter
-- Confidence derived from consensus, not self-assessment
-
-The same pattern applies at scale beyond code review: contract analysis, compliance checks, customer escalations. Any domain where a single AI reviewer is a single point of bias.
-
----
-
-## Add to Your Repo — Auto-review Every PR
-
-CodeQuorum can run automatically on every pull request and post results as a PR comment. No manual step needed.
-
-**1. Add the workflow file to your repo**
-
-Create `.github/workflows/codequorum.yml`:
-
-```yaml
-name: CodeQuorum Review
-on:
-  pull_request:
-    types: [opened, synchronize]
-jobs:
-  review:
-    runs-on: ubuntu-latest
-    permissions:
-      pull-requests: write
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-      - run: pip install anthropic langgraph python-dotenv requests
-      - run: |
-          curl -sO https://raw.githubusercontent.com/suboss87/CodeQuorum/main/cli.py
-          curl -sO https://raw.githubusercontent.com/suboss87/CodeQuorum/main/agents.py
-          curl -sO https://raw.githubusercontent.com/suboss87/CodeQuorum/main/graph.py
-      - run: python cli.py --path . --format markdown > review.md
-        env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-      - uses: actions/github-script@v7
-        with:
-          script: |
-            const body = require('fs').readFileSync('review.md','utf8');
-            await github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo, body });
-```
-
-**2. Add your API key as a repo secret**
-
-`Settings → Secrets → New repository secret → ANTHROPIC_API_KEY`
-
-That is it. Every PR now gets a CodeQuorum review posted automatically.
-
----
-
-## Quick Start (Streamlit UI)
-
-```bash
-git clone https://github.com/suboss87/CodeQuorum
-cd CodeQuorum
-pip install -r requirements.txt
-cp .env.example .env
-# Add your API key to .env
-streamlit run app.py
-```
-
-For GitHub OAuth setup (one-click repo connect), see `.env.example`.
 
 ## Tests
 
 ```bash
 pytest tests/ -v
 ```
-
-11 tests, all passing.
 
 ---
 
