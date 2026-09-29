@@ -1,6 +1,10 @@
 # CodeQuorum
 
-**An AI that codes alongside developers — detecting design flaws, proposing tests, and refactoring.**
+**Pull request review by three Claude agents with different priorities. A problem is flagged as a fix only when two of them find it independently.**
+
+[![Tests](https://github.com/suboss87/CodeQuorum/actions/workflows/tests.yml/badge.svg)](https://github.com/suboss87/CodeQuorum/actions/workflows/tests.yml) [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
+Built for *The AI Pair Engineer*, challenge #2.
 
 Add one YAML file to your repo. Every pull request is automatically reviewed and results posted as a PR comment — no UI, no manual step, no context switching.
 
@@ -33,7 +37,7 @@ flowchart LR
 
     B --> C
 
-    subgraph C ["🔍 Three agents review in parallel  ~4 seconds "]
+    subgraph C ["🔍 Three agents review in parallel"]
         direction TB
         P["🚢 Pragmatist\nWill this break in production?"]
         U["🎯 Purist\nDoes this do what it claims?"]
@@ -209,10 +213,21 @@ Connect your GitHub account → pick a repo → click **Convene Quorum**.
 
 ---
 
+## Limits
+
+- **Up to 10 changed files per review, 30 KB each.** Larger pull requests are reviewed partially, and the comment says how many files were skipped.
+- **Each agent reports at most 3 findings.** CodeQuorum aims for a few high-signal problems, not full coverage.
+- **Findings can be wrong.** Agreement between agents raises confidence but does not prove a bug. Treat "Fix It" as a strong suggestion and run the proposed test.
+- **Your code is sent to the Anthropic API** (`claude-sonnet-4-6`) using your own key. Don't enable it on repositories whose code you can't share with that provider.
+- **The workflow above downloads the scripts from `main` on every run.** For production use, replace `main` in the three `curl` URLs with a commit SHA you have reviewed.
+
+---
+
 ## Tests
 
 ```bash
-pytest tests/ -v
+pip install -r requirements.txt pytest
+pytest tests/ -v   # 27 tests, no API key needed
 ```
 
 ---
